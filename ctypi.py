@@ -21,11 +21,35 @@ def conv2(img, filt):
                     filt.expand(1,1,f_H,f_W),
                     padding=((f_H-1)//2,(f_W-1)//2)).squeeze()
 
+def dxdy(ref,moving,Dx,Dy,A=None):
+    """
+    ref - Tensor[H,W]
+    moving - Tensor[H,W]
+    Dx - ref x derivative Tensor[H,W]
+    Dy - ref y derivative Tensor[H,W]
+    """
+    if A==None:
+        A = torch.Tensor([[torch.sum(Dx*Dx), torch.sum(Dx*Dy)],
+                          [torch.sum(Dy*Dx), torch.sum(Dy*Dy)]])
+
+    b = torch.Tensor([[torch.sum(Dx*(moving-ref))],
+                      [torch.sum(Dy*(moving-ref))]])
+    return torch.solve(b,A)[0] # return the result only
+
 def align(stack):
     """
     stack - [batch, width, height]
     output - align stack
     """
+    ref = stack[0] # set the first frame as refernce
+    # clac derivative and A matrix
+    Dx = conv2(ref,x_filter)
+    Dy = conv2(ref,y_filter)
+    A = torch.Tensor([[torch.sum(Dx*Dx), torch.sum(Dx*Dy)],
+                      [torch.sum(Dy*Dx), torch.sum(Dy*Dy)]])
+
+    for img in stack[1:]:
+        xy = dxdy(ref,img,Dx,Dy,A)
 
 def merge(stack):
     """
