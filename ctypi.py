@@ -84,7 +84,7 @@ def shift_image(img, dx, dy):
     #fft needs the last dim to be 2 (real,complex) TODO: faster implementation
     img_padded = torch.stack((img,torch.zeros(N,M)),dim=2)
     fft_img = torch.fft(img_padded,2)
-    tmp = np.exp(-1.j*2*np.pi*np.fft.fftfreq(N)*dx)
+    tmp = np.exp(-1.j*2*np.pi*np.fft.fftfreq(N)*dx) #TODO: remove np vector
     X = torch.from_numpy(tmp.view("(2,)float")).float()
     tmp = np.exp(-1.j*2*np.pi*np.fft.fftfreq(M)*dy)
     Y = torch.from_numpy(tmp.view("(2,)float")).float()
@@ -101,20 +101,24 @@ def align(stack):
     """
     ref = stack[0] # set the first frame as refernce
     # clac derivative and A matrix
+    N = len(x_filter)//2
     Dx = conv2(ref,x_filter)
+    Dx = conv2(Dx,x_spectral_filter)[N:-N,N:-N] #TODO: could be merged
     Dy = conv2(ref,y_filter)
+    Dy = conv2(Dy,y_spectral_filter)[N:-N,N:-N] #TODO: could be merged
     A = torch.Tensor([[torch.sum(Dx*Dx), torch.sum(Dx*Dy)],
                       [torch.sum(Dy*Dx), torch.sum(Dy*Dy)]])
 
-    for img in stack[1:]:
-        dx,dy = dxdy(ref,img,Dx,Dy,A)
-        img = shift_image(img,dx,dy)
+    for i in range(1,len(stack)):
+        dx,dy = dxdy(ref,stack[i],Dx,Dy,A).numpy()
+        stack[i] = shift_image(stack[i],-dx,-dy)
 
 def merge(stack):
     """
     stack - align stack of images [batch, height, width]
     output - single image [height ,width]
     """
+    return torch.mean(stack,dim=0)
 
 
 def load_images(path, N):
