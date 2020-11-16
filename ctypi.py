@@ -8,6 +8,33 @@ from os import listdir
 x_filter = torch.Tensor([[1, 0, -1], [2, 0, -2], [1, 0, -1]])
 y_filter = x_filter.transpose(0,1)
 
+def complex_mul(A,B):
+    """
+    out = A*B for complex torch.tensors
+    A - [a, b, 2] if vector a or b should be 1
+    B - [b, c, 2]
+    out - [a, c, 2]
+    """
+    A_real, A_imag = A[...,0], A[...,1]
+    B_real, B_imag = B[...,0], B[...,1]
+    return torch.stack([A_real@B_real-A_imag@B_imag,
+                        A_real@B_imag+A_imag@B_real],
+                       dim=-1)
+
+def complex_vector_brodcast(A,B):
+    """
+    out = A*B for complex torch.tensors
+    A - [1, b, 2]
+    B - [a, b, 2]
+    out - [a, b, 2]
+    """
+    A_real, A_imag = A[...,0], A[...,1]
+    B_real, B_imag = B[...,0], B[...,1]
+    return torch.stack([A_real*B_real-A_imag*B_imag,
+                        A_real*B_imag+A_imag*B_real],
+                       dim=-1)
+
+
 def conv2(img, filt):
     """
     filter image using pytorch
@@ -34,7 +61,27 @@ def dxdy(ref,moving,Dx,Dy,A=None):
 
     b = torch.Tensor([[torch.sum(Dx*(moving-ref))],
                       [torch.sum(Dy*(moving-ref))]])
-    return torch.solve(b,A)[0] # return the result only
+    return torch.solve(b, A)[0]  # return the result only
+
+def shift_image(img, dx, dy):
+    """
+    img - Tensor[H,W]
+    dx - float
+    dy - float
+    """
+    N,M = img.size()
+    #fft needs the last dim to be 2 (real,complex) TODO: faster implementation
+    img_padded = torch.stack((img,torch.zeros(N,M)),dim=2)
+    fft_img = torch.fft(img_padded,2)
+    tmp = np.exp(-1.j*2*np.pi*np.fft.fftfreq(N)*dx)
+    X = torch.from_numpy(tmp.view("(2,)float")).float()
+    tmp = np.exp(-1.j*2*np.pi*np.fft.fftfreq(M)*dy)
+    Y = torch.from_numpy(tmp.view("(2,)float")).float()
+    # clac the shifted image
+    tmp = complex_vector_brodcast(fft_img,X.unsqueeze(1))
+    tmp = complex_vector_brodcast(Y.unsqueeze(0),tmp)
+    return torch.ifft(tmp,2).norm(dim=2)
+
 
 def align(stack):
     """
@@ -71,4 +118,5 @@ def load_images(path, N):
 
 
 if __name__ == '__main__':
-    print("hello world!")
+    arr = load_images("/home/dicker/workspace/ctypi/images/",8)
+    import matplotlib.pyplot as plt
