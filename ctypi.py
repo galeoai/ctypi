@@ -5,8 +5,10 @@ import torch.nn.functional as F
 from PIL import Image
 from os import listdir
 
-x_filter = torch.Tensor([[1, 0, -1], [2, 0, -2], [1, 0, -1]])
-y_filter = x_filter.transpose(0,1)
+y_filter = torch.Tensor([[1 / 2, 0, -1 / 2]])
+x_filter = y_filter.transpose(0, 1)
+y_spectral_filter = torch.Tensor([[0.0116850998497429921230139626686650444753468036651611328125,-0.0279730819380002923568717676516826031729578971862792968750,0.2239007887600356350166208585505955852568149566650390625000,0.5847743866564433234955799889576155692338943481445312500000,0.2239007887600356350166208585505955852568149566650390625000,-0.0279730819380002923568717676516826031729578971862792968750,0.0116850998497429921230139626686650444753468036651611328125]])
+x_spectral_filter = y_spectral_filter.transpose(0, 1)
 
 def complex_mul(A,B):
     """
@@ -48,19 +50,28 @@ def conv2(img, filt):
                     filt.expand(1,1,f_H,f_W),
                     padding=((f_H-1)//2,(f_W-1)//2)).squeeze()
 
-def dxdy(ref,moving,Dx,Dy,A=None):
+def dxdy(ref,moving,Dx=None,Dy=None,A=None):
     """
     ref - Tensor[H,W]
     moving - Tensor[H,W]
     Dx - ref x derivative Tensor[H,W]
     Dy - ref y derivative Tensor[H,W]
     """
+    N = len(x_filter)//2
+    if Dx==None:
+        Dx = conv2(ref,x_filter)
+        Dx = conv2(Dx,x_spectral_filter)[N:-N,N:-N] #TODO: could be merged
+    if Dy==None:
+        Dy = conv2(ref,y_filter)
+        Dy = conv2(Dy,y_spectral_filter)[N:-N,N:-N] #TODO: could be merged
     if A==None:
         A = torch.Tensor([[torch.sum(Dx*Dx), torch.sum(Dx*Dy)],
                           [torch.sum(Dy*Dx), torch.sum(Dy*Dy)]])
 
-    b = torch.Tensor([[torch.sum(Dx*(moving-ref))],
-                      [torch.sum(Dy*(moving-ref))]])
+    diff_frame_dx = conv2((moving-ref),x_spectral_filter)[N:-N,N:-N]
+    diff_frame_dy = conv2((moving-ref),y_spectral_filter)[N:-N,N:-N]
+    b = torch.Tensor([[torch.sum(Dx*diff_frame_dx)],
+                      [torch.sum(Dy*diff_frame_dy)]])
     return torch.solve(b, A)[0]  # return the result only
 
 def shift_image(img, dx, dy):
@@ -96,7 +107,8 @@ def align(stack):
                       [torch.sum(Dy*Dx), torch.sum(Dy*Dy)]])
 
     for img in stack[1:]:
-        xy = dxdy(ref,img,Dx,Dy,A)
+        dx,dy = dxdy(ref,img,Dx,Dy,A)
+        img = shift_image(img,dx,dy)
 
 def merge(stack):
     """
