@@ -59,11 +59,9 @@ def dxdy(ref,moving,Dx=None,Dy=None,A=None):
     """
     N = len(x_filter)//2
     if Dx==None:
-        Dx = conv2(ref,x_filter)
-        Dx = conv2(Dx,x_spectral_filter)[N:-N,N:-N] #TODO: could be merged
+        Dx = conv2(ref,x_filter)[N:-N,N:-N]
     if Dy==None:
-        Dy = conv2(ref,y_filter)
-        Dy = conv2(Dy,y_spectral_filter)[N:-N,N:-N] #TODO: could be merged
+        Dy = conv2(ref,y_filter)[N:-N,N:-N]
     if A==None:
         A = torch.Tensor([[torch.sum(Dx*Dx), torch.sum(Dx*Dy)],
                           [torch.sum(Dy*Dx), torch.sum(Dy*Dy)]])
