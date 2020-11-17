@@ -128,11 +128,34 @@ def load_images(path, N):
     output - stack images as pytorch tensor 
     """
     images_files = listdir(path)
+    images_files.sort()
+    if N>0:
+        images_files = images_files[:N]
+
     images = [path+img for img in images_files if img.endswith(".tif")]
     stack = np.asarray([np.array(Image.open(img)) for img in images], dtype=np.float32) # have to be float32 for conv2d input 
     return torch.from_numpy(stack)
 
 
 if __name__ == '__main__':
-    arr = load_images("/home/dicker/workspace/ctypi/images/",8)
-    import matplotlib.pyplot as plt
+    # Argument parser 
+    import argparse
+    import sys
+    ap = argparse.ArgumentParser(description="Subpixel alignment and merging using Maor's algorithm")
+    ap.add_argument('path',
+                    help='dir path of the stack image in tif format')
+    ap.add_argument('-N',
+                    default=8,
+                    help='number of images to load',
+                    type=int)
+    ap.add_argument('-o','--output', 
+                    default='./',
+                    help='output dir (default: %(default)s)')
+
+    args = ap.parse_args()
+    arr = load_images(args.path,args.N)
+    align(arr)
+    output = Image.fromarray(merge(arr).numpy())
+    output.save(args.output+'out.tif')
+    
+    
