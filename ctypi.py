@@ -155,7 +155,11 @@ if __name__ == '__main__':
     args = ap.parse_args()
     arr = load_images(args.path,args.N)
     align(arr)
-    output = Image.fromarray(merge(arr).numpy())
+
+    merged = merge(arr).numpy()
+    # scale
+    merged = (merged - merged.min()) / (merged.max() - merged.min())
+    output = Image.fromarray((255*merged).astype(np.uint8))
     output.save(args.output+'out.tif')
     
     

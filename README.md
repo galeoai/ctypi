@@ -13,6 +13,7 @@ I2(x,y) ≈ I1(x,y) + Dx(x,y)dx + Dy(x,y)dy
 - [X] Spectral filter
 - [ ] testing
 - [ ] support more formats
+- [ ] saving output image in 10/16 bits
 - [ ] split the implementation and the app 
 - [ ] move Tensors to the gpu if available
 - [ ] Integration with Dudy's framework
