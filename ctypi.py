@@ -57,7 +57,7 @@ def dxdy(ref,moving,Dx=None,Dy=None,A=None):
     Dx - ref x derivative Tensor[H,W]
     Dy - ref y derivative Tensor[H,W]
     """
-    N = len(x_filter)//2
+    N = floor(len(x_filter)//2)
     if Dx==None:
         Dx = conv2(ref,x_filter)[N:-N,N:-N]
     if Dy==None:
@@ -66,8 +66,8 @@ def dxdy(ref,moving,Dx=None,Dy=None,A=None):
         A = torch.Tensor([[torch.sum(Dx*Dx), torch.sum(Dx*Dy)],
                           [torch.sum(Dy*Dx), torch.sum(Dy*Dy)]])
 
-    diff_frame_dx = conv2((moving-ref),x_spectral_filter)[N:-N,N:-N]
-    diff_frame_dy = conv2((moving-ref),y_spectral_filter)[N:-N,N:-N]
+    diff_frame_dx = conv2((moving-ref),x_spectral_filter)[N+1:-N,N+1:-N]
+    diff_frame_dy = conv2((moving-ref),y_spectral_filter)[N+1:-N,N+1:-N]
     b = torch.Tensor([[torch.sum(Dx*diff_frame_dx)],
                       [torch.sum(Dy*diff_frame_dy)]])
     return torch.solve(b, A)[0]  # return the result only
